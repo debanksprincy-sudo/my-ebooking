@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # My ebooking
 
 Boutique Django de livres PDF pour enfants : catalogue public, commande par WhatsApp, dépôt d'avis à partir d'un lien de commande et espace privé pour gérer les livres et modérer les avis.
@@ -67,3 +68,7 @@ Avant déploiement, configurez `DJANGO_SECRET_KEY` avec une clé aléatoire priv
 Pour générer le hash à saisir dans Render, depuis PowerShell à la racine du projet, exécutez `python manage.py hash_admin_code`, saisissez le code à l'invite puis copiez le hash affiché dans la variable `ADMIN_ACCESS_CODE_HASH`. Ne collez jamais le code lui-même dans une variable, un commit ou un message. Toute modification des variables dans Render doit être suivie d'un redéploiement.
 
 Après déploiement, testez la page d'accueil, l'ajout d'un livre (couverture et PDF), la commande WhatsApp et le lien d'avis. Conservez des sauvegardes PostgreSQL et des fichiers téléversés.
+=======
+# my-ebooking
+Vente livre pour enfant.
+>>>>>>> a586126dadbfe9f39c2ac706c2d0001b39480c0a
