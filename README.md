@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # My ebooking
 
 Boutique Django de livres PDF pour enfants : catalogue public, commande par WhatsApp, dépôt d'avis à partir d'un lien de commande et espace privé pour gérer les livres et modérer les avis.
@@ -39,10 +38,10 @@ Le catalogue est accessible sur `http://127.0.0.1:8000/`. L'espace privé est su
 - L'espace privé donne accès à l'ajout et à la suppression des livres, ainsi qu'à la modération (publication/masquage) des avis.
 - Le clic sur « Commander sur WhatsApp » crée une commande, puis redirige vers le numéro vendeur avec le livre et les coordonnées du client préremplis.
 - Chaque commande possède un lien d'avis aléatoire et non devinable envoyé dans la conversation WhatsApp. Seule cette URL permet de déposer un avis lié à une commande ; un seul avis est accepté par commande. Les avis restent invisibles jusqu'à leur approbation par l'admin.
-- Les fichiers PDF sont conservés dans `private_books/` et ne sont téléchargeables que depuis l'espace admin authentifié. Les couvertures restent dans `media/`.
+- En local, les PDF sont conservés dans `private_books/` et les couvertures dans `media/`. En production, ils sont envoyés dans un bucket privé compatible S3 (préfixes `private_books/` et `media/`). Les PDF ne sont téléchargeables que depuis l'espace admin authentifié, et les couvertures sont affichées par des liens signés qui expirent au bout d'une heure.
 - WhatsApp ne confirme pas à l'application qu'une vente a été conclue. L'éligibilité aux avis repose donc sur la création de la commande via le site, et non sur une preuve de paiement.
 
-Avant déploiement, configurez `DJANGO_SECRET_KEY` avec une clé aléatoire privée, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS`, `WHATSAPP_PHONE_NUMBER` et `ADMIN_ACCESS_CODE_HASH`. Servez les fichiers de couverture depuis `MEDIA_ROOT` et gardez `PRIVATE_BOOK_ROOT` hors du répertoire des fichiers statiques/publics.
+Avant déploiement, configurez `DJANGO_SECRET_KEY` avec une clé aléatoire privée, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS`, `WHATSAPP_PHONE_NUMBER` et `ADMIN_ACCESS_CODE_HASH`. Configurez aussi le stockage des fichiers (voir l'étape 5 ci-dessous).
 
 ## Déploiement sur Render
 
@@ -62,13 +61,19 @@ Avant déploiement, configurez `DJANGO_SECRET_KEY` avec une clé aléatoire priv
    | `ADMIN_ACCESS_CODE_HASH` | Hash Django du code admin, jamais le code en clair |
 
    Render fournit `RENDER_EXTERNAL_HOSTNAME`, utilisé automatiquement pour les hôtes autorisés et la protection CSRF. Si vous configurez un domaine personnalisé, ajoutez-le à `DJANGO_ALLOWED_HOSTS` et son origine HTTPS à `DJANGO_CSRF_TRUSTED_ORIGINS`.
-5. Pour ne pas perdre les couvertures et PDF lors d'un redéploiement, ajoutez un **Persistent Disk** au service (fonctionnalité sur une offre payante), monté sur `/var/data`, puis ajoutez `RENDER_DISK_PATH=/var/data`. Sans disque persistant ou stockage objet externe, les fichiers ajoutés sur Render sont éphémères. La base PostgreSQL conserve séparément les livres, commandes et avis.
+5. Le disque d'un service Render gratuit est effacé à chaque redéploiement ou redémarrage. Les couvertures et les PDF sont donc stockés dans un bucket **privé** compatible S3 (Cloudflare R2, Backblaze B2, Supabase Storage, AWS S3...). Créez le bucket et une clé d'accès avec droits de lecture et d'écriture sur ce bucket, puis ajoutez ces variables :
+
+   | Variable | Valeur |
+   | --- | --- |
+   | `STORAGE_BUCKET_NAME` | Nom du bucket |
+   | `STORAGE_ACCESS_KEY_ID` | Identifiant de la clé d'accès |
+   | `STORAGE_SECRET_ACCESS_KEY` | Secret de la clé d'accès |
+   | `STORAGE_ENDPOINT_URL` | Adresse S3 du fournisseur, par exemple `https://<account_id>.r2.cloudflarestorage.com` pour R2 |
+   | `STORAGE_REGION` | Facultatif, `auto` par défaut (valeur attendue par R2). Indiquez la région du bucket pour les autres fournisseurs. |
+
+   Supprimez l'ancienne variable `RENDER_DISK_PATH`, qui n'est plus utilisée. Sans `STORAGE_BUCKET_NAME`, le site refuse de démarrer en production. La base PostgreSQL conserve séparément les livres, commandes et avis.
 6. Dans Render, lancez le déploiement, puis ouvrez `https://<nom-du-service>.onrender.com/gestion-privee/`. Une fois connecté, ajoutez les livres.
 
 Pour générer le hash à saisir dans Render, depuis PowerShell à la racine du projet, exécutez `python manage.py hash_admin_code`, saisissez le code à l'invite puis copiez le hash affiché dans la variable `ADMIN_ACCESS_CODE_HASH`. Ne collez jamais le code lui-même dans une variable, un commit ou un message. Toute modification des variables dans Render doit être suivie d'un redéploiement.
 
 Après déploiement, testez la page d'accueil, l'ajout d'un livre (couverture et PDF), la commande WhatsApp et le lien d'avis. Conservez des sauvegardes PostgreSQL et des fichiers téléversés.
-=======
-# my-ebooking
-Vente livre pour enfant.
->>>>>>> a586126dadbfe9f39c2ac706c2d0001b39480c0a

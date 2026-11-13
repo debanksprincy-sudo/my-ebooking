@@ -1,0 +1,212 @@
+diff --git a/README.md b/README.md
+index de080ba..55be6c7 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,3 @@
+-<<<<<<< HEAD
+ # My ebooking
+ 
+ Boutique Django de livres PDF pour enfants : catalogue public, commande par WhatsApp, dépôt d'avis à partir d'un lien de commande et espace privé pour gérer les livres et modérer les avis.
+@@ -39,10 +38,10 @@ Le catalogue est accessible sur `http://127.0.0.1:8000/`. L'espace privé est su
+ - L'espace privé donne accès à l'ajout et à la suppression des livres, ainsi qu'à la modération (publication/masquage) des avis.
+ - Le clic sur « Commander sur WhatsApp » crée une commande, puis redirige vers le numéro vendeur avec le livre et les coordonnées du client préremplis.
+ - Chaque commande possède un lien d'avis aléatoire et non devinable envoyé dans la conversation WhatsApp. Seule cette URL permet de déposer un avis lié à une commande ; un seul avis est accepté par commande. Les avis restent invisibles jusqu'à leur approbation par l'admin.
+-- Les fichiers PDF sont conservés dans `private_books/` et ne sont téléchargeables que depuis l'espace admin authentifié. Les couvertures restent dans `media/`.
++- En local, les PDF sont conservés dans `private_books/` et les couvertures dans `media/`. En production, ils sont envoyés dans un bucket privé compatible S3 (préfixes `private_books/` et `media/`). Les PDF ne sont téléchargeables que depuis l'espace admin authentifié, et les couvertures sont affichées par des liens signés qui expirent au bout d'une heure.
+ - WhatsApp ne confirme pas à l'application qu'une vente a été conclue. L'éligibilité aux avis repose donc sur la création de la commande via le site, et non sur une preuve de paiement.
+ 
+-Avant déploiement, configurez `DJANGO_SECRET_KEY` avec une clé aléatoire privée, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS`, `WHATSAPP_PHONE_NUMBER` et `ADMIN_ACCESS_CODE_HASH`. Servez les fichiers de couverture depuis `MEDIA_ROOT` et gardez `PRIVATE_BOOK_ROOT` hors du répertoire des fichiers statiques/publics.
++Avant déploiement, configurez `DJANGO_SECRET_KEY` avec une clé aléatoire privée, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS`, `WHATSAPP_PHONE_NUMBER` et `ADMIN_ACCESS_CODE_HASH`. Configurez aussi le stockage des fichiers (voir l'étape 5 ci-dessous).
+ 
+ ## Déploiement sur Render
+ 
+@@ -62,13 +61,19 @@ Avant déploiement, configurez `DJANGO_SECRET_KEY` avec une clé aléatoire priv
+    | `ADMIN_ACCESS_CODE_HASH` | Hash Django du code admin, jamais le code en clair |
+ 
+    Render fournit `RENDER_EXTERNAL_HOSTNAME`, utilisé automatiquement pour les hôtes autorisés et la protection CSRF. Si vous configurez un domaine personnalisé, ajoutez-le à `DJANGO_ALLOWED_HOSTS` et son origine HTTPS à `DJANGO_CSRF_TRUSTED_ORIGINS`.
+-5. Pour ne pas perdre les couvertures et PDF lors d'un redéploiement, ajoutez un **Persistent Disk** au service (fonctionnalité sur une offre payante), monté sur `/var/data`, puis ajoutez `RENDER_DISK_PATH=/var/data`. Sans disque persistant ou stockage objet externe, les fichiers ajoutés sur Render sont éphémères. La base PostgreSQL conserve séparément les livres, commandes et avis.
++5. Le disque d'un service Render gratuit est effacé à chaque redéploiement ou redémarrage. Les couvertures et les PDF sont donc stockés dans un bucket **privé** compatible S3 (Cloudflare R2, Backblaze B2, Supabase Storage, AWS S3...). Créez le bucket et une clé d'accès avec droits de lecture et d'écriture sur ce bucket, puis ajoutez ces variables :
++
++   | Variable | Valeur |
++   | --- | --- |
++   | `STORAGE_BUCKET_NAME` | Nom du bucket |
++   | `STORAGE_ACCESS_KEY_ID` | Identifiant de la clé d'accès |
++   | `STORAGE_SECRET_ACCESS_KEY` | Secret de la clé d'accès |
++   | `STORAGE_ENDPOINT_URL` | Adresse S3 du fournisseur, par exemple `https://<account_id>.r2.cloudflarestorage.com` pour R2 |
++   | `STORAGE_REGION` | Facultatif, `auto` par défaut (valeur attendue par R2). Indiquez la région du bucket pour les autres fournisseurs. |
++
++   Supprimez l'ancienne variable `RENDER_DISK_PATH`, qui n'est plus utilisée. Sans `STORAGE_BUCKET_NAME`, le site refuse de démarrer en production. La base PostgreSQL conserve séparément les livres, commandes et avis.
+ 6. Dans Render, lancez le déploiement, puis ouvrez `https://<nom-du-service>.onrender.com/gestion-privee/`. Une fois connecté, ajoutez les livres.
+ 
+ Pour générer le hash à saisir dans Render, depuis PowerShell à la racine du projet, exécutez `python manage.py hash_admin_code`, saisissez le code à l'invite puis copiez le hash affiché dans la variable `ADMIN_ACCESS_CODE_HASH`. Ne collez jamais le code lui-même dans une variable, un commit ou un message. Toute modification des variables dans Render doit être suivie d'un redéploiement.
+ 
+ Après déploiement, testez la page d'accueil, l'ajout d'un livre (couverture et PDF), la commande WhatsApp et le lien d'avis. Conservez des sauvegardes PostgreSQL et des fichiers téléversés.
+-=======
+-# my-ebooking
+-Vente livre pour enfant.
+->>>>>>> a586126dadbfe9f39c2ac706c2d0001b39480c0a
+diff --git a/catalog/migrations/0003_book_pdf_storage.py b/catalog/migrations/0003_book_pdf_storage.py
+new file mode 100644
+index 0000000..ac9f5ad
+--- /dev/null
++++ b/catalog/migrations/0003_book_pdf_storage.py
+@@ -0,0 +1,24 @@
++# Generated by Django 5.2.19 on 2026-11-13 11:55
++
++import catalog.models
++from django.db import migrations, models
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ("catalog", "0002_alter_book_price"),
++    ]
++
++    operations = [
++        migrations.AlterField(
++            model_name="book",
++            name="pdf",
++            field=models.FileField(
++                blank=True,
++                storage=catalog.models.private_book_storage,
++                upload_to="books/",
++                verbose_name="livre PDF",
++            ),
++        ),
++    ]
+diff --git a/catalog/models.py b/catalog/models.py
+index ef44b77..d97e307 100644
+--- a/catalog/models.py
++++ b/catalog/models.py
+@@ -1,5 +1,5 @@
+ from django.conf import settings
+-from django.core.files.storage import FileSystemStorage
++from django.core.files.storage import FileSystemStorage, storages
+ from django.core.validators import MaxValueValidator, MinValueValidator
+ from django.db import models
+ from django.urls import reverse
+@@ -8,11 +8,15 @@ from django.utils.deconstruct import deconstructible
+ 
+ @deconstructible
+ class PrivateBookStorage(FileSystemStorage):
++    """Conservée uniquement parce que la migration 0001 y fait référence."""
++
+     def __init__(self):
+         super().__init__(location=settings.PRIVATE_BOOK_ROOT)
+ 
+ 
+-private_pdf_storage = PrivateBookStorage()
++def private_book_storage():
++    """Stockage des PDF : disque local en développement, bucket S3 privé en production."""
++    return storages["private_books"]
+ 
+ 
+ class Book(models.Model):
+@@ -24,7 +28,7 @@ class Book(models.Model):
+     )
+     cover = models.ImageField("couverture", upload_to="covers/", blank=True)
+     pdf = models.FileField(
+-        "livre PDF", upload_to="books/", storage=private_pdf_storage, blank=True
++        "livre PDF", upload_to="books/", storage=private_book_storage, blank=True
+     )
+     is_available = models.BooleanField("disponible", default=True)
+     created_at = models.DateTimeField("ajouté le", auto_now_add=True)
+diff --git a/my_ebooking/settings.py b/my_ebooking/settings.py
+index 0a34d5a..8652af4 100644
+--- a/my_ebooking/settings.py
++++ b/my_ebooking/settings.py
+@@ -96,24 +96,69 @@ USE_TZ = True
+ STATIC_URL = "static/"
+ STATICFILES_DIRS = [BASE_DIR / "static"]
+ STATIC_ROOT = BASE_DIR / "staticfiles"
+-STORAGES = {
+-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+-    "staticfiles": {
+-        "BACKEND": (
+-            "whitenoise.storage.CompressedStaticFilesStorage"
+-            if DEBUG
+-            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
++STATICFILES_BACKEND = (
++    "whitenoise.storage.CompressedStaticFilesStorage"
++    if DEBUG
++    else "whitenoise.storage.CompressedManifestStaticFilesStorage"
++)
++
++# Fichiers téléversés (couvertures et PDF).
++# En local, ils sont enregistrés sur le disque dans media/ et private_books/.
++# En production, le disque de Render est effacé à chaque redémarrage : les
++# fichiers sont donc envoyés vers un stockage objet compatible S3
++# (Cloudflare R2, Backblaze B2, Supabase Storage, AWS S3...).
++MEDIA_URL = "media/"
++MEDIA_ROOT = BASE_DIR / "media"
++PRIVATE_BOOK_ROOT = BASE_DIR / "private_books"
++
++STORAGE_BUCKET_NAME = os.environ.get("STORAGE_BUCKET_NAME", "")
++if STORAGE_BUCKET_NAME:
++    missing = [
++        name
++        for name in ("STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY", "STORAGE_ENDPOINT_URL")
++        if not os.environ.get(name)
++    ]
++    if missing:
++        raise ImproperlyConfigured(
++            "Variables de stockage manquantes : " + ", ".join(missing)
+         )
+-    },
+-}
+-DATA_ROOT = Path(os.environ.get("RENDER_DISK_PATH", BASE_DIR))
+-if not DEBUG and not os.environ.get("RENDER_DISK_PATH"):
++    s3_options = {
++        "bucket_name": STORAGE_BUCKET_NAME,
++        "access_key": os.environ["STORAGE_ACCESS_KEY_ID"],
++        "secret_key": os.environ["STORAGE_SECRET_ACCESS_KEY"],
++        "endpoint_url": os.environ["STORAGE_ENDPOINT_URL"],
++        "region_name": os.environ.get("STORAGE_REGION", "auto"),
++        "signature_version": "s3v4",
++        # Le bucket reste privé : chaque lien est signé et expire.
++        "default_acl": None,
++        "querystring_auth": True,
++        "file_overwrite": False,
++    }
++    STORAGES = {
++        "default": {
++            "BACKEND": "storages.backends.s3.S3Storage",
++            "OPTIONS": {**s3_options, "location": "media", "querystring_expire": 3600},
++        },
++        "private_books": {
++            "BACKEND": "storages.backends.s3.S3Storage",
++            "OPTIONS": {**s3_options, "location": "private_books", "querystring_expire": 300},
++        },
++        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
++    }
++elif not DEBUG:
+     raise ImproperlyConfigured(
+-        "RENDER_DISK_PATH doit pointer vers un disque persistant pour les fichiers téléversés."
++        "STORAGE_BUCKET_NAME doit être défini en production : le disque de Render "
++        "ne conserve pas les fichiers téléversés."
+     )
+-MEDIA_URL = "media/"
+-MEDIA_ROOT = DATA_ROOT / "media"
+-PRIVATE_BOOK_ROOT = DATA_ROOT / "private_books"
++else:
++    STORAGES = {
++        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
++        "private_books": {
++            "BACKEND": "django.core.files.storage.FileSystemStorage",
++            "OPTIONS": {"location": PRIVATE_BOOK_ROOT},
++        },
++        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
++    }
+ 
+ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+ ADMIN_ACCESS_CODE_HASH = os.environ.get("ADMIN_ACCESS_CODE_HASH", "")
+diff --git a/requirements.txt b/requirements.txt
+index f190ca7..9a159dd 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -4,3 +4,4 @@ dj-database-url>=2.3,<3.0
+ gunicorn>=23.0,<24.0
+ psycopg[binary]>=3.2,<4.0
+ whitenoise>=6.8,<7.0
++django-storages[s3]>=1.14,<2.0

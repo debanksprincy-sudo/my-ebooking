@@ -96,24 +96,69 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {
-        "BACKEND": (
-            "whitenoise.storage.CompressedStaticFilesStorage"
-            if DEBUG
-            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
-        )
-    },
-}
-DATA_ROOT = Path(os.environ.get("RENDER_DISK_PATH", BASE_DIR))
-if not DEBUG and not os.environ.get("RENDER_DISK_PATH"):
-    raise ImproperlyConfigured(
-        "RENDER_DISK_PATH doit pointer vers un disque persistant pour les fichiers téléversés."
-    )
+STATICFILES_BACKEND = (
+    "whitenoise.storage.CompressedStaticFilesStorage"
+    if DEBUG
+    else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+)
+
+# Fichiers téléversés (couvertures et PDF).
+# En local, ils sont enregistrés sur le disque dans media/ et private_books/.
+# En production, le disque de Render est effacé à chaque redémarrage : les
+# fichiers sont donc envoyés vers un stockage objet compatible S3
+# (Cloudflare R2, Backblaze B2, Supabase Storage, AWS S3...).
 MEDIA_URL = "media/"
-MEDIA_ROOT = DATA_ROOT / "media"
-PRIVATE_BOOK_ROOT = DATA_ROOT / "private_books"
+MEDIA_ROOT = BASE_DIR / "media"
+PRIVATE_BOOK_ROOT = BASE_DIR / "private_books"
+
+STORAGE_BUCKET_NAME = os.environ.get("STORAGE_BUCKET_NAME", "")
+if STORAGE_BUCKET_NAME:
+    missing = [
+        name
+        for name in ("STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY", "STORAGE_ENDPOINT_URL")
+        if not os.environ.get(name)
+    ]
+    if missing:
+        raise ImproperlyConfigured(
+            "Variables de stockage manquantes : " + ", ".join(missing)
+        )
+    s3_options = {
+        "bucket_name": STORAGE_BUCKET_NAME,
+        "access_key": os.environ["STORAGE_ACCESS_KEY_ID"],
+        "secret_key": os.environ["STORAGE_SECRET_ACCESS_KEY"],
+        "endpoint_url": os.environ["STORAGE_ENDPOINT_URL"],
+        "region_name": os.environ.get("STORAGE_REGION", "auto"),
+        "signature_version": "s3v4",
+        # Le bucket reste privé : chaque lien est signé et expire.
+        "default_acl": None,
+        "querystring_auth": True,
+        "file_overwrite": False,
+    }
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {**s3_options, "location": "media", "querystring_expire": 3600},
+        },
+        "private_books": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {**s3_options, "location": "private_books", "querystring_expire": 300},
+        },
+        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
+    }
+elif not DEBUG:
+    raise ImproperlyConfigured(
+        "STORAGE_BUCKET_NAME doit être défini en production : le disque de Render "
+        "ne conserve pas les fichiers téléversés."
+    )
+else:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "private_books": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": PRIVATE_BOOK_ROOT},
+        },
+        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ADMIN_ACCESS_CODE_HASH = os.environ.get("ADMIN_ACCESS_CODE_HASH", "")

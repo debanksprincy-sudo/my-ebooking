@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import FileSystemStorage, storages
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.urls import reverse
@@ -8,11 +8,15 @@ from django.utils.deconstruct import deconstructible
 
 @deconstructible
 class PrivateBookStorage(FileSystemStorage):
+    """Conservée uniquement parce que la migration 0001 y fait référence."""
+
     def __init__(self):
         super().__init__(location=settings.PRIVATE_BOOK_ROOT)
 
 
-private_pdf_storage = PrivateBookStorage()
+def private_book_storage():
+    """Stockage des PDF : disque local en développement, bucket S3 privé en production."""
+    return storages["private_books"]
 
 
 class Book(models.Model):
@@ -24,7 +28,7 @@ class Book(models.Model):
     )
     cover = models.ImageField("couverture", upload_to="covers/", blank=True)
     pdf = models.FileField(
-        "livre PDF", upload_to="books/", storage=private_pdf_storage, blank=True
+        "livre PDF", upload_to="books/", storage=private_book_storage, blank=True
     )
     is_available = models.BooleanField("disponible", default=True)
     created_at = models.DateTimeField("ajouté le", auto_now_add=True)
