@@ -1,0 +1,16 @@
+{% extends "catalog/base.html" %}
+{% block title %}Déposer un avis — My ebooking{% endblock %}
+{% block content %}
+<section class="form-page">
+  <a class="back-link" href="{{ book.get_absolute_url }}">← Retour au livre</a>
+  <p class="eyebrow">VOTRE COMMANDE</p><h1>Votre avis compte</h1>
+  <p class="muted">Partagez votre expérience avec « {{ book.title }} ».</p>
+  <form method="post" class="form-stack form-panel">
+    {% csrf_token %}
+    {% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>{% endfor %}
+    {% for error in form.non_field_errors %}<small class="error">{{ error }}</small>{% endfor %}
+    <button class="button button-dark" type="submit">Envoyer mon avis</button>
+    <p class="form-hint">Votre avis sera publié après vérification par notre équipe.</p>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "catalog/base.html" %}
+{% block title %}{{ book.title }} — My ebooking{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="{% url 'catalog' %}">Les livres</a><span>/</span><span>{{ book.title }}</span></div>
+<section class="detail-layout">
+  <div class="detail-cover">
+    {% if book.cover %}<img class="cover" src="{{ book.cover.url }}" alt="Couverture de {{ book.title }}">
+    {% else %}<div class="cover cover-placeholder"><span>✳</span><strong>{{ book.title }}</strong><small>une histoire à découvrir</small></div>{% endif %}
+  </div>
+  <div class="detail-content">
+    <p class="eyebrow">UN LIVRE À DÉCOUVRIR</p><h1>{{ book.title }}</h1>
+    {% if book.author %}<p class="detail-author">Par {{ book.author }}</p>{% endif %}
+    <p class="detail-price">{{ book.price }} <small>FCFA</small></p>
+    <div class="description">{{ book.description|linebreaks }}</div>
+    <div class="order-box"><h2>Envie de cette histoire ?</h2><p>Indiquez vos coordonnées et nous vous mettrons en contact avec le vendeur sur WhatsApp.</p>
+      <form method="post" action="{% url 'order_book' book.pk %}" class="form-stack">
+        {% csrf_token %}
+        {% for field in order_form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>{% endfor %}
+        <button class="button button-dark" type="submit">Commander sur WhatsApp <span aria-hidden="true">↗</span></button>
+      </form>
+    </div>
+  </div>
+</section>
+<section class="reviews-section">
+  <div class="section-heading"><div><p class="eyebrow">LES MOTS DES LECTEURS</p><h2>Leurs avis</h2></div></div>
+  {% if reviews %}
+    <div class="review-grid">{% for review in reviews %}<article class="review-card"><p class="stars" aria-label="{{ review.rating }} sur 5 étoiles">{% for star in "12345" %}{% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}{% endfor %}</p><p class="review-comment">« {{ review.comment }} »</p><p class="review-author">{{ review.customer_name }}</p></article>{% endfor %}</div>
+  {% else %}<p class="muted">Pas encore d’avis pour ce livre.</p>{% endif %}
+</section>
+{% endblock %}

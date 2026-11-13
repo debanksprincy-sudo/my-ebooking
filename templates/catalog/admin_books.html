@@ -1,0 +1,17 @@
+{% extends "catalog/base.html" %}
+{% block title %}Gestion des livres — My ebooking{% endblock %}
+{% block content %}
+<section class="admin-page">
+  <div class="admin-heading"><div><p class="eyebrow">ESPACE PRIVÉ</p><h1>Gestion de la boutique</h1></div>
+    <div class="admin-actions"><a class="button button-dark" href="{% url 'admin_add_book' %}">+ Ajouter un livre</a><a class="button button-light" href="{% url 'admin_reviews' %}">Modérer les avis</a>
+      <form method="post" action="{% url 'admin_logout' %}">{% csrf_token %}<button class="text-link" type="submit">Déconnexion</button></form>
+    </div>
+  </div>
+  {% if books %}<div class="admin-list">{% for book in books %}<article class="admin-row">
+    <div class="admin-book-cover">{% if book.cover %}<img src="{{ book.cover.url }}" alt="">{% else %}<span>✳</span>{% endif %}</div>
+    <div class="admin-book-info"><h2>{{ book.title }}</h2><p>{{ book.author|default:"Auteur non indiqué" }} · {{ book.price }} FCFA</p><span class="status {% if book.is_available %}status-live{% else %}status-hidden{% endif %}">{% if book.is_available %}Visible{% else %}Masqué{% endif %}</span></div>
+    {% if book.pdf %}<a class="text-link" href="{% url 'admin_download_book' book.pk %}">Télécharger PDF</a>{% endif %}
+    <form method="post" action="{% url 'admin_delete_book' book.pk %}" onsubmit="return confirm('Supprimer ce livre et ses avis ?')">{% csrf_token %}<button class="delete-button" type="submit">Supprimer</button></form>
+  </article>{% endfor %}</div>{% else %}<div class="empty-state"><h3>Aucun livre pour l’instant.</h3><p>Ajoutez votre premier livre pour le voir apparaître dans le catalogue.</p></div>{% endif %}
+</section>
+{% endblock %}

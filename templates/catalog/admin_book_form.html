@@ -1,0 +1,13 @@
+{% extends "catalog/base.html" %}
+{% block title %}Ajouter un livre — My ebooking{% endblock %}
+{% block content %}
+<section class="form-page admin-form-page">
+  <a class="back-link" href="{% url 'admin_books' %}">← Retour à la gestion</a>
+  <p class="eyebrow">CATALOGUE</p><h1>Ajouter un livre</h1>
+  <form method="post" enctype="multipart/form-data" class="form-stack form-panel">
+    {% csrf_token %}
+    {% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small class="field-help">{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>{% endfor %}
+    <button class="button button-dark" type="submit">Enregistrer le livre</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "catalog/base.html" %}
+{% block title %}Accès privé — My ebooking{% endblock %}
+{% block content %}
+<section class="form-page admin-login">
+  <p class="eyebrow">ESPACE PRIVÉ</p><h1>Bonjour, admin.</h1>
+  <p class="muted">Saisissez votre code confidentiel pour gérer la boutique.</p>
+  <form method="post" class="form-stack form-panel">
+    {% csrf_token %}
+    <div class="field"><label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>{{ form.code }}{% for error in form.code.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>
+    <button class="button button-dark" type="submit">Entrer dans l’espace admin</button>
+  </form>
+</section>
+{% endblock %}
